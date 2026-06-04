@@ -1,8 +1,21 @@
-# Audit Compliance Demo
+# AuditPilot — 审计合规智能分析 Demo
 
-审计合规智能分析 M0+ demo。当前阶段只跑通最小端到端链路：前端上传文件并输入审核问题，后端保存文件、做基础解析，并返回 mock 或 OpenAI-compatible LLM 分析结果。
+当前阶段：**M0+ 文档解析增强**。已完成：
 
-本阶段不实现 ChromaDB、embedding、制度向量化、RAG、案例库、数据库、登录权限或报告导出。
+- ✅ txt/md/csv 文本解析
+- ✅ jpg/png/bmp/tiff/webp 图片 OCR（PaddleOCR/Tesseract）
+- ✅ PDF/docx/xlsx 文档解析
+- ✅ 扫描版 PDF OCR fallback
+- ✅ Mock LLM（无 API key 也能跑）
+- ✅ CI + ruff + pytest（34 tests）
+
+**暂不实现：** ChromaDB、embedding、制度向量化、RAG、案例库、数据库、登录权限。
+
+## 部署
+
+见 [`docs/deployment.md`](docs/deployment.md)
+
+## 快速启动
 
 ## Learning Path for Beginners
 
