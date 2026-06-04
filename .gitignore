@@ -12,3 +12,7 @@ frontend/dist/
 
 # Local tooling
 .DS_Store
+.codex
+
+# Knowledge base (large, sensitive)
+data/regulations/raw/知识库/
