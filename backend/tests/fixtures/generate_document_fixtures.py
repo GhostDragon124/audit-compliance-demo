@@ -17,12 +17,16 @@ def generate_pdf(path: Path = FIXTURES_DIR / "sample.pdf") -> None:
     document = fitz.open()
     page = document.new_page()
     page.insert_text((72, 72), "Audit PDF sample procurement control")
+    page.insert_text((72, 92), "Approval evidence includes budget owner review and sign-off.")
     document.save(path)
     document.close()
 
 
 def _generate_pdf_stdlib(path: Path) -> None:
-    stream = b"BT /F1 12 Tf 72 720 Td (Audit PDF sample procurement control) Tj ET"
+    stream = (
+        b"BT /F1 12 Tf 72 720 Td (Audit PDF sample procurement control) Tj "
+        b"0 -20 Td (Approval evidence includes budget owner review and sign-off.) Tj ET"
+    )
     objects = [
         b"<< /Type /Catalog /Pages 2 0 R >>",
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
@@ -30,6 +34,47 @@ def _generate_pdf_stdlib(path: Path) -> None:
         b"/Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         b"<< /Length " + str(len(stream)).encode("ascii") + b" >>\nstream\n" + stream + b"\nendstream",
+    ]
+    content = bytearray(b"%PDF-1.4\n")
+    offsets = [0]
+    for index, body in enumerate(objects, start=1):
+        offsets.append(len(content))
+        content.extend(f"{index} 0 obj\n".encode("ascii"))
+        content.extend(body)
+        content.extend(b"\nendobj\n")
+    xref_offset = len(content)
+    content.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    content.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        content.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    content.extend(
+        f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\n"
+        f"startxref\n{xref_offset}\n%%EOF\n".encode("ascii")
+    )
+    path.write_bytes(content)
+
+
+def generate_scanned_pdf(path: Path = FIXTURES_DIR / "scanned_sample.pdf") -> None:
+    try:
+        import fitz
+    except ModuleNotFoundError:
+        _generate_blank_pdf_stdlib(path)
+        return
+
+    document = fitz.open()
+    page = document.new_page(width=300, height=200)
+    pixmap = fitz.Pixmap(fitz.csRGB, fitz.IRect(0, 0, 120, 60), False)
+    pixmap.clear_with(255)
+    page.insert_image(fitz.Rect(72, 72, 192, 132), pixmap=pixmap)
+    document.save(path)
+    document.close()
+
+
+def _generate_blank_pdf_stdlib(path: Path) -> None:
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 200] /Resources << >> >>",
     ]
     content = bytearray(b"%PDF-1.4\n")
     offsets = [0]
@@ -211,6 +256,7 @@ def _generate_xlsx_stdlib(path: Path) -> None:
 def generate_all() -> None:
     FIXTURES_DIR.mkdir(parents=True, exist_ok=True)
     generate_pdf()
+    generate_scanned_pdf()
     generate_docx()
     generate_xlsx()
     (FIXTURES_DIR / "unsupported.doc").write_bytes(b"")

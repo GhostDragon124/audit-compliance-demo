@@ -1,5 +1,6 @@
 import csv
 import re
+from tempfile import NamedTemporaryFile
 from pathlib import Path
 from typing import Protocol
 from xml.etree import ElementTree
@@ -19,6 +20,7 @@ class DocumentParser:
     text_suffixes = {".txt", ".md", ".csv", ".pdf", ".docx", ".xlsx"}
     image_suffixes = SUPPORTED_IMAGE_SUFFIXES
     supported_suffixes = text_suffixes | image_suffixes
+    pdf_ocr_max_pages = 50
 
     def __init__(self, ocr_service: OCRTextExtractor | None = None):
         self._ocr_service = ocr_service
@@ -108,15 +110,59 @@ class DocumentParser:
 
     def _read_pdf(self, file_path: Path) -> str:
         try:
-            import fitz
+            import fitz  # noqa: F401
         except ModuleNotFoundError:
             return self._read_pdf_without_pymupdf(file_path)
+
+        text, total_pages = self._extract_pdf_text(file_path)
+        text_chars = len(text.strip())
+        avg_chars_per_page = text_chars / max(total_pages, 1)
+        if avg_chars_per_page < 20 or text_chars < 50:
+            return self._ocr_pdf_pages(file_path)
+        return text
+
+    def _extract_pdf_text(self, file_path: Path) -> tuple[str, int]:
+        import fitz
 
         page_texts: list[str] = []
         with fitz.open(str(file_path)) as pdf_document:
             for page_number, page in enumerate(pdf_document, start=1):
                 page_texts.append(f"[Page {page_number}]\n{page.get_text()}")
-        return "\n".join(page_texts)
+            return "\n".join(page_texts), len(pdf_document)
+
+    def _ocr_pdf_pages(self, file_path: Path) -> str:
+        import fitz
+
+        page_texts: list[str] = []
+        errors: list[str] = []
+        with fitz.open(str(file_path)) as pdf_document:
+            page_count = min(len(pdf_document), self.pdf_ocr_max_pages)
+            for page_number in range(page_count):
+                page = pdf_document[page_number]
+                pixmap = page.get_pixmap(dpi=200)
+                image_file = NamedTemporaryFile(
+                    prefix=f"_ocr_page_{page_number + 1}_",
+                    suffix=".png",
+                    dir="/tmp",
+                    delete=False,
+                )
+                image_path = Path(image_file.name)
+                image_file.close()
+                try:
+                    pixmap.save(str(image_path))
+                    page_text = self._get_ocr_service().extract_text(image_path)
+                except Exception as exc:
+                    errors.append(str(exc))
+                    page_text = ""
+                finally:
+                    image_path.unlink(missing_ok=True)
+                page_texts.append(f"[Page {page_number + 1}]\n{page_text}")
+
+        if any(page_text.split("\n", maxsplit=1)[-1].strip() for page_text in page_texts):
+            return "\n".join(page_texts)
+        if errors:
+            raise RuntimeError(f"OCR fallback failed: {errors[0]}")
+        raise ValueError("No text detected by OCR fallback")
 
     def _read_docx(self, file_path: Path) -> str:
         try:

@@ -41,6 +41,18 @@ def test_parse_pdf_file(fixtures_dir: Path) -> None:
     assert parsed.error is None
 
 
+def test_text_pdf_does_not_trigger_ocr(fixtures_dir: Path) -> None:
+    ocr_service = FakeOCRService(error=AssertionError("OCR should not be called"))
+
+    parsed = DocumentParser(ocr_service=ocr_service).parse(fixtures_dir / "sample.pdf", "sample.pdf")
+
+    assert parsed.filename == "sample.pdf"
+    assert parsed.status == "parsed"
+    assert "Audit PDF sample procurement control" in parsed.preview
+    assert parsed.error is None
+    assert ocr_service.calls == []
+
+
 def test_parse_docx_file(fixtures_dir: Path) -> None:
     parsed = DocumentParser().parse(fixtures_dir / "sample.docx", "sample.docx")
 
@@ -119,14 +131,63 @@ def test_parse_empty_file(tmp_path: Path) -> None:
 
 
 class FakeOCRService:
-    def __init__(self, text: str | None = None, error: Exception | None = None):
+    def __init__(
+        self,
+        text: str | None = None,
+        error: Exception | None = None,
+        assert_image_exists: bool = False,
+    ):
         self.text = text
         self.error = error
+        self.assert_image_exists = assert_image_exists
+        self.calls: list[Path] = []
 
     def extract_text(self, image_path: Path) -> str:
+        self.calls.append(image_path)
+        if self.assert_image_exists:
+            assert image_path.exists()
         if self.error:
             raise self.error
         return self.text or ""
+
+
+def test_scanned_pdf_triggers_ocr_fallback(fixtures_dir: Path) -> None:
+    expected_text = "OCR fallback procurement approval evidence"
+    ocr_service = FakeOCRService(expected_text, assert_image_exists=True)
+
+    parsed = DocumentParser(ocr_service=ocr_service).parse(
+        fixtures_dir / "scanned_sample.pdf",
+        "scanned_sample.pdf",
+    )
+
+    assert parsed.filename == "scanned_sample.pdf"
+    assert parsed.status == "parsed"
+    assert "[Page 1]" in parsed.preview
+    assert expected_text in parsed.preview
+    assert parsed.error is None
+    assert len(ocr_service.calls) == 1
+    assert all(image_path.parent == Path("/tmp") for image_path in ocr_service.calls)
+    assert all(not image_path.exists() for image_path in ocr_service.calls)
+
+
+def test_ocr_fallback_graceful_on_failure(fixtures_dir: Path) -> None:
+    ocr_service = FakeOCRService(
+        error=RuntimeError("OCR failed"),
+        assert_image_exists=True,
+    )
+
+    parsed = DocumentParser(ocr_service=ocr_service).parse(
+        fixtures_dir / "scanned_sample.pdf",
+        "scanned_sample.pdf",
+    )
+
+    assert parsed.filename == "scanned_sample.pdf"
+    assert parsed.status == "failed"
+    assert parsed.preview == ""
+    assert parsed.error
+    assert "OCR failed" in parsed.error
+    assert len(ocr_service.calls) == 1
+    assert all(not image_path.exists() for image_path in ocr_service.calls)
 
 
 def test_parse_image_returns_ocr_parsed(fixtures_dir: Path, tmp_path: Path) -> None:
