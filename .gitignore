@@ -1,0 +1,14 @@
+# Backend
+backend/.env
+backend/.venv/
+backend/uploads/*
+!backend/uploads/.gitkeep
+__pycache__/
+*.py[cod]
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Local tooling
+.DS_Store
