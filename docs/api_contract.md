@@ -24,8 +24,14 @@ Supported parser formats in M0+:
 - `.txt`
 - `.md`
 - `.csv`
+- `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp` through OCR
 
-Unsupported formats return a file-level `unsupported` status and do not fail the entire request.
+File-level statuses:
+
+- `parsed`: text/markdown/csv parsed successfully.
+- `ocr_parsed`: image OCR parsed successfully.
+- `unsupported`: file suffix is not supported.
+- `failed`: parsing or OCR failed for this file. Other uploaded files continue processing.
 
 Response:
 

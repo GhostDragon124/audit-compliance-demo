@@ -51,3 +51,56 @@ def test_parse_empty_file(tmp_path: Path) -> None:
     assert parsed.status == "parsed"
     assert parsed.preview == ""
     assert parsed.error is None
+
+
+
+class FakeOCRService:
+    def __init__(self, text: str | None = None, error: Exception | None = None):
+        self.text = text
+        self.error = error
+
+    def extract_text(self, image_path: Path) -> str:
+        if self.error:
+            raise self.error
+        return self.text or ""
+
+
+def test_parse_image_returns_ocr_parsed(fixtures_dir: Path, tmp_path: Path) -> None:
+    image_file = tmp_path / "sample.png"
+    image_file.write_bytes(b"fake-image")
+    expected_text = (fixtures_dir / "sample_ocr.txt").read_text(encoding="utf-8").strip()
+
+    parsed = DocumentParser(ocr_service=FakeOCRService(expected_text)).parse(image_file, "sample.png")
+
+    assert parsed.filename == "sample.png"
+    assert parsed.status == "ocr_parsed"
+    assert parsed.preview == expected_text
+    assert parsed.error is None
+
+
+def test_parse_image_ocr_failure_returns_failed(tmp_path: Path) -> None:
+    image_file = tmp_path / "sample.png"
+    image_file.write_bytes(b"fake-image")
+
+    parsed = DocumentParser(ocr_service=FakeOCRService(error=RuntimeError("OCR failed"))).parse(
+        image_file,
+        "sample.png",
+    )
+
+    assert parsed.filename == "sample.png"
+    assert parsed.status == "failed"
+    assert parsed.preview == ""
+    assert parsed.error == "OCR failed"
+
+
+
+def test_parse_image_no_text_returns_failed(tmp_path: Path) -> None:
+    image_file = tmp_path / "sample.png"
+    image_file.write_bytes(b"fake-image")
+
+    parsed = DocumentParser(ocr_service=FakeOCRService("   ")).parse(image_file, "sample.png")
+
+    assert parsed.filename == "sample.png"
+    assert parsed.status == "failed"
+    assert parsed.preview == ""
+    assert parsed.error == "No text detected in image"

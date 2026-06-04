@@ -10,7 +10,8 @@ Frontend file upload and audit question -> FastAPI backend -> basic file parsing
 
 - `frontend/`: React + Vite + TypeScript single-page workspace.
 - `backend/app/main.py`: FastAPI application, CORS, health check, and analyze API.
-- `backend/app/services/document_parser.py`: Basic parser for `.txt`, `.md`, and `.csv`.
+- `backend/app/services/document_parser.py`: Basic parser for `.txt`, `.md`, `.csv`, and image files via OCR service delegation.
+- `backend/app/services/ocr_service.py`: OCR provider abstraction for PaddleOCR, Tesseract fallback, or disabled mode.
 - `backend/app/services/audit_engine.py`: Business orchestration layer.
 - `backend/app/services/llm_client.py`: OpenAI-compatible chat completions client with mock fallback.
 - `backend/app/services/regulation_indexer.py`: Placeholder for future regulation indexing.

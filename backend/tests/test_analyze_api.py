@@ -3,6 +3,8 @@ from pathlib import Path
 import httpx
 import pytest
 
+from app.services.document_parser import DocumentParser
+
 
 def _upload_file(path: Path, content_type: str = "text/plain") -> tuple[str, tuple[str, bytes, str]]:
     return ("files", (path.name, path.read_bytes(), content_type))
@@ -86,3 +88,76 @@ async def test_analyze_without_question(client: httpx.AsyncClient, fixtures_dir:
     )
 
     assert response.status_code == 422
+
+
+
+class FakeOCRService:
+    def __init__(self, text: str | None = None, error: Exception | None = None):
+        self.text = text
+        self.error = error
+
+    def extract_text(self, image_path: Path) -> str:
+        if self.error:
+            raise self.error
+        return self.text or ""
+
+
+def _image_file(tmp_path: Path, name: str = "sample.png") -> Path:
+    image_path = tmp_path / name
+    image_path.write_bytes(b"fake-image")
+    return image_path
+
+
+@pytest.mark.asyncio
+async def test_analyze_with_image_file(
+    client: httpx.AsyncClient,
+    fixtures_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    expected_text = (fixtures_dir / "sample_ocr.txt").read_text(encoding="utf-8").strip()
+    monkeypatch.setattr(
+        "app.main.DocumentParser",
+        lambda: DocumentParser(ocr_service=FakeOCRService(expected_text)),
+    )
+
+    response = await client.post(
+        "/api/analyze",
+        data={"question": "请识别图片中的审计风险。"},
+        files=[_upload_file(_image_file(tmp_path), "image/png")],
+    )
+
+    assert response.status_code == 200
+    parsed_file = response.json()["parsed_files"][0]
+    assert parsed_file["filename"] == "sample.png"
+    assert parsed_file["status"] == "ocr_parsed"
+    assert parsed_file["preview"] == expected_text
+
+
+@pytest.mark.asyncio
+async def test_analyze_mixed_files(
+    client: httpx.AsyncClient,
+    fixtures_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(
+        "app.main.DocumentParser",
+        lambda: DocumentParser(ocr_service=FakeOCRService(error=RuntimeError("OCR failed"))),
+    )
+
+    response = await client.post(
+        "/api/analyze",
+        data={"question": "请汇总图片和文本材料。"},
+        files=[
+            _upload_file(_image_file(tmp_path), "image/png"),
+            _upload_file(fixtures_dir / "sample.txt"),
+        ],
+    )
+
+    assert response.status_code == 200
+    parsed_files = {item["filename"]: item for item in response.json()["parsed_files"]}
+    assert parsed_files["sample.png"]["status"] == "failed"
+    assert parsed_files["sample.png"]["error"] == "OCR failed"
+    assert parsed_files["sample.txt"]["status"] == "parsed"
+    assert "采购审批" in parsed_files["sample.txt"]["preview"]
