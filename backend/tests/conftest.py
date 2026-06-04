@@ -6,12 +6,12 @@ BACKEND_DIR = Path(__file__).parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-import httpx
-import pytest
-import pytest_asyncio
+import httpx  # noqa: E402
+import pytest  # noqa: E402
+import pytest_asyncio  # noqa: E402
 
-from app.config import Settings
-from app.main import app
+from app.config import Settings  # noqa: E402
+from app.main import app  # noqa: E402
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
