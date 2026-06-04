@@ -4,6 +4,25 @@
 
 本阶段不实现 ChromaDB、embedding、制度向量化、RAG、案例库、数据库、登录权限或报告导出。
 
+## Learning Path for Beginners
+
+如果你是第一次看这个项目，不要从所有代码开始看。
+
+请按这个顺序阅读：
+
+1. `docs/learning/00_project_map.md`
+2. `docs/learning/01_frontend_module.md`
+3. `docs/learning/02_backend_module.md`
+4. `docs/learning/03_data_module.md`
+5. `docs/learning/04_request_flow.md`
+6. `docs/learning/05_learning_checklist.md`
+
+M0 阶段只需要理解一条主线：
+
+```text
+frontend 点击按钮 -> backend 接收请求 -> backend 返回 JSON -> frontend 显示结果
+```
+
 ## Project Structure
 
 ```text
