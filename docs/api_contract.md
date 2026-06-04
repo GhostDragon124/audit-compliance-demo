@@ -24,13 +24,21 @@ Supported parser formats in M0+:
 - `.txt`
 - `.md`
 - `.csv`
+- `.pdf` through text extraction. Scanned PDF OCR is not included in this slice.
+- `.docx` including paragraphs and tables
+- `.xlsx` including all sheets rendered as markdown-like tables
 - `.jpg`, `.jpeg`, `.png`, `.bmp`, `.tiff`, `.tif`, `.webp` through OCR
+
+Explicitly unsupported legacy Office formats:
+
+- `.doc`
+- `.xls`
 
 File-level statuses:
 
-- `parsed`: text/markdown/csv parsed successfully.
+- `parsed`: text/markdown/csv/pdf/docx/xlsx parsed successfully.
 - `ocr_parsed`: image OCR parsed successfully.
-- `unsupported`: file suffix is not supported.
+- `unsupported`: file suffix is not supported, including legacy `.doc` and `.xls`.
 - `failed`: parsing or OCR failed for this file. Other uploaded files continue processing.
 
 Response:

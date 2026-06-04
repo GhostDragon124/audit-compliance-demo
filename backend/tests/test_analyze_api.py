@@ -30,6 +30,21 @@ async def test_analyze_with_txt_file(client: httpx.AsyncClient, fixtures_dir: Pa
 
 
 @pytest.mark.asyncio
+async def test_analyze_with_pdf_file(client: httpx.AsyncClient, fixtures_dir: Path) -> None:
+    response = await client.post(
+        "/api/analyze",
+        data={"question": "请识别 PDF 材料中的审计风险。"},
+        files=[_upload_file(fixtures_dir / "sample.pdf", "application/pdf")],
+    )
+
+    assert response.status_code == 200
+    parsed_file = response.json()["parsed_files"][0]
+    assert parsed_file["filename"] == "sample.pdf"
+    assert parsed_file["status"] == "parsed"
+    assert "Audit PDF sample procurement control" in parsed_file["preview"]
+
+
+@pytest.mark.asyncio
 async def test_analyze_with_multiple_files(client: httpx.AsyncClient, fixtures_dir: Path) -> None:
     response = await client.post(
         "/api/analyze",
