@@ -1,6 +1,6 @@
 # AuditPilot Definition of Done
 
-> 文件路径：`docs/definition_of_done.md`  
+> 文件路径：`docs/governance/definition_of_done.md`  
 > 文档性质：完成定义与验收门槛  
 > 适用范围：所有 Slice、Bug 修复、架构变更、真实 Provider 验收、RAG 集成与部署活动  
 > 适用对象：Project Owner、Hermes、Codex、Claude Code、其他开发与审查 Agent
@@ -251,6 +251,13 @@ NOT_RUN / BLOCKED
 - [ ] 测试和验收结果已记录；
 - [ ] 当前状态已准备更新；
 - [ ] 重要决策已写入 decision log；
+- [ ] 新增治理文档存放在 `docs/governance/` 的正确子目录；
+- [ ] 当前状态已更新到 `docs/governance/current_status.md`；
+- [ ] 重要决策已更新到 `docs/governance/decision_log.md`；
+- [ ] Slice 执行文档位于 `docs/governance/slices/`；
+- [ ] 验收与 Gate Review 报告位于 `docs/governance/acceptance/`；
+- [ ] 没有在 `docs/` 根目录散落新增治理文件；
+- [ ] 所有移动后的旧路径引用已同步更新；
 - [ ] 文档没有夸大当前能力。
 
 文档不得声称：

@@ -76,29 +76,31 @@ Codex 不得自行决定产品方向，不得跨 Slice 实现未来功能。
 
 1. `AGENTS.md`
 2. `docs/architecture.md`
-3. `docs/governance.md`（存在时）
-4. `docs/definition_of_done.md`（存在时）
-5. 当前 Slice 文件或 Project Owner / Hermes 明确批准的任务说明
-6. 与当前任务直接相关的测试、状态和决策文档
-
-如存在以下文件，也必须读取：
-
-```text
-docs/current_status.md
-docs/decision_log.md
-docs/slices/<current_slice>.md
-```
+3. `docs/governance/README.md`
+4. `docs/governance/governance.md`
+5. `docs/governance/definition_of_done.md`
+6. `docs/governance/current_status.md`
+7. `docs/governance/decision_log.md`
+8. `current_status.md` 指定的当前 Slice 文件
 
 聊天记录不是最终真相源。仓库内已批准文档优先。
+
+所有治理状态、决策、Slice 和验收证据必须存放在
+`docs/governance/` 下。
+
+Agent 不得在 `docs/` 根目录随意创建新的治理文件。
 
 若文档之间冲突，优先级为：
 
 ```text
 Project Owner 最新明确决策
 → AGENTS.md
-→ docs/governance.md
 → docs/architecture.md
-→ docs/definition_of_done.md
+→ docs/governance/README.md
+→ docs/governance/governance.md
+→ docs/governance/definition_of_done.md
+→ docs/governance/current_status.md
+→ docs/governance/decision_log.md
 → 当前 Slice 文件
 → 其他文档和聊天记录
 ```

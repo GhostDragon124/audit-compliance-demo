@@ -1,6 +1,6 @@
 # AuditPilot Governance
 
-> 文件路径：`docs/governance.md`  
+> 文件路径：`docs/governance/governance.md`  
 > 文档性质：项目治理规则与决策流程  
 > 适用范围：AuditPilot 全部开发、测试、审查、部署与 Agent 协作活动  
 > 适用对象：Project Owner、ChatGPT、Claude、Hermes、Codex、其他开发与审查 Agent
@@ -26,7 +26,7 @@
 
 - `AGENTS.md`
 - `docs/architecture.md`
-- `docs/definition_of_done.md`
+- `docs/governance/definition_of_done.md`
 - 单个 Slice 的任务说明
 
 ---
@@ -184,21 +184,24 @@ Agent 的口头总结不能替代这些证据。
 
 ---
 
-## 4. 单一真相源
+## 4. 治理文档目录与单一真相源
 
 项目事实不得只存在于聊天记录中。
+
+`docs/governance/` 是 AuditPilot 的治理控制面，用于集中存放治理规则、项目状态、决策日志、Slice 文件和验收证据。
 
 以下仓库文件组成正式真相源：
 
 ```text
 AGENTS.md
 docs/architecture.md
-docs/governance.md
-docs/definition_of_done.md
-docs/current_status.md
-docs/decision_log.md
-docs/slices/
-docs/acceptance/
+docs/governance/README.md
+docs/governance/governance.md
+docs/governance/definition_of_done.md
+docs/governance/current_status.md
+docs/governance/decision_log.md
+docs/governance/slices/
+docs/governance/acceptance/
 ```
 
 建议用途：
@@ -207,12 +210,27 @@ docs/acceptance/
 |---|---|
 | `AGENTS.md` | 所有 Agent 的入口执行合同 |
 | `docs/architecture.md` | 技术架构与架构不变量 |
-| `docs/governance.md` | 权力、决策、流程和变更治理 |
-| `docs/definition_of_done.md` | Slice 完成标准 |
-| `docs/current_status.md` | 当前事实、测试状态、阻塞项和下一步 |
-| `docs/decision_log.md` | 已批准的重要决策 |
-| `docs/slices/<slice>.md` | 单个 Slice 的正式执行说明 |
-| `docs/acceptance/<report>.md` | 验收和 Gate Review 报告 |
+| `docs/governance/README.md` | 治理控制面入口、文件职责和读取顺序 |
+| `docs/governance/governance.md` | 权力、决策、流程和变更治理 |
+| `docs/governance/definition_of_done.md` | Slice 完成标准 |
+| `docs/governance/current_status.md` | 当前事实、测试状态、阻塞项和下一步 |
+| `docs/governance/decision_log.md` | 已批准的重要决策 |
+| `docs/governance/slices/` | 单个 Slice 的正式执行说明目录 |
+| `docs/governance/acceptance/` | 验收、Gate Review、真实 Provider 验证和部署验收证据目录 |
+
+低频治理规则文件：
+
+- `docs/governance/governance.md`
+- `docs/governance/definition_of_done.md`
+
+高频动态状态文件：
+
+- `docs/governance/current_status.md`
+- `docs/governance/decision_log.md`
+- `docs/governance/slices/`
+- `docs/governance/acceptance/`
+
+重要项目事实只有写入治理控制面后才正式生效。Agent 不得在 `docs/` 根目录随意创建新的治理文件。
 
 聊天中的新决策只有在 Project Owner 明确确认后，才应写入正式文档并生效。
 
@@ -319,7 +337,7 @@ Hermes 可批准
 2. 至少列出一个方案，重要决策应列出多个方案；
 3. 风险和影响被说明；
 4. Project Owner 明确确认；
-5. 决策写入 `docs/decision_log.md`；
+5. 决策写入 `docs/governance/decision_log.md`；
 6. 如影响架构或治理，相应文档已更新；
 7. 后续 Slice 基于该决策创建。
 
@@ -461,7 +479,7 @@ Agent 不得自行将 Verification 等同于 Done。
 
 Done 后应：
 
-- 更新 `docs/current_status.md`；
+- 更新 `docs/governance/current_status.md`；
 - 更新相关决策与架构文档；
 - 记录测试结果；
 - 准备或执行获批的 commit/tag；
@@ -753,7 +771,7 @@ AuditPilot 面向院内审计材料，默认采用最小暴露原则。
 
 ## 15. 状态管理
 
-`docs/current_status.md` 应保持简短、事实化。
+`docs/governance/current_status.md` 应保持简短、事实化。
 
 建议包含：
 
