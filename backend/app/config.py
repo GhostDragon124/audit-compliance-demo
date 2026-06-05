@@ -13,6 +13,13 @@ class Settings(BaseSettings):
     ocr_lang: str = "ch"
     ocr_enable: bool = True
 
+    embedding_provider: str = "random"
+    embedding_model: str = "BAAI/bge-small-zh-v1.5"
+    chroma_persist_dir: str = "../data/indexes/chroma/regulations"
+    chroma_collection_name: str = "regulations"
+    chunk_size: int = 1000
+    chunk_overlap: int = 200
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
