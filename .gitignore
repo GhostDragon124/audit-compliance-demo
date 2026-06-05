@@ -15,7 +15,11 @@ frontend/dist/
 
 # ── Owner-local agent workflow and governance (local-only, NOT committed) ──
 /AGENTS.md
-/docs/
+/docs/*
+!/docs/deployment/
+/docs/devlog/
+/docs/governance/
+/docs/learning/
 /.hermes/
 
 # Machine-local runtime configuration (never commit real credentials)
