@@ -36,7 +36,7 @@ class PaddleOCRProvider(OCRProvider):
 
     def extract(self, image_path: Path) -> str:
         try:
-            result = self.ocr.ocr(str(image_path), textline_orientation=True)
+            result = self.ocr.ocr(str(image_path), use_textline_orientation=True)
         except Exception as exc:
             raise OCRException(f"PaddleOCR extraction failed: {exc}") from exc
 

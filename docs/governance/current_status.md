@@ -1,15 +1,16 @@
 # Current Status
 
 - Current branch: `master`
-- Current commit: `1d2e7cb`
-- Current tag: `slice-4a-complete`
-- Test baseline: `scripts/verify.sh` PASS on 2026-06-05: `python -m compileall app` PASS, `python -m pytest` PASS (`132 passed, 7 xfailed, 7 deselected`), `ruff check .` PASS, `frontend npm run build` PASS.
-- Active tracks: `Case 001 Evaluation Harness (Phase 0, 4A, 4B complete)`
-- Current slice: `Slice 4B: RAG Prompt Grounding` — COMPLETE. All 6 strict xfail tests now pass normally.
-- Future slices: `Slice 4C: End-to-End Evaluation` — PROPOSED. Must NOT auto-execute.
-- AuditEngine: RAG prompt construction added (`build_rag_prompt`). Material full text + regulation fragments + source references + disclaimer. Fake retriever + fake LLM used in tests.
-- Evaluation harness: Phase 0 (23 pass), 4A (4 pass), 4B (6 pass), 4C (7 xfail).
-- Golden test case: Case 001 — 12 files tracked in Git.
+- Current commit: `1e4af24`
+- Current tag: `slice-4b-complete`
+- Test baseline: `scripts/verify.sh` PASS on 2026-06-05: `python -m compileall app` PASS, `python -m pytest` PASS (`132 passed, 14 deselected`), `ruff check .` PASS, `frontend npm run build` PASS. E2E marker tests: `python -m pytest -m 'case001_e2e or case001_local_ocr'` → `7 passed`.
+- Active tracks: `Case 001 Evaluation Harness — ALL SLICES COMPLETE`
+- Current slice: `Slice 4C: End-to-End Evaluation` — COMPLETE. All 7 strict xfail tests now pass with real providers.
+- Future slices: None pending.
+- AuditEngine: RAG prompt construction (`build_rag_prompt`). VectorRetriever: isolated retrieval with ChromaDB. Full pipeline verified: parse/OCR → embed → retrieve → RAG prompt → Qwen → risk output.
+- Evaluation harness: Phase 0 (23 pass), 4A (4 pass), 4B (6 pass), 4C (7 pass). Total: 40 evaluation tests.
+- Production fix: ocr_service.py PaddleOCR 3.6.0 API compatibility (textline_orientation → use_textline_orientation).
+- Golden test case: Case 001 — 12 files tracked in Git. Full pipeline verified with real PaddleOCR + Qwen3.6-35B + Qwen3-Embedding-4B.
 - P0: None
 - P1: None
 - P2: None
