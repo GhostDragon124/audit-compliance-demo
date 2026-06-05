@@ -1,11 +1,9 @@
-"""
-Slice 4A: Case 001 Retrieval Test Skeleton (STRICT XFAIL)
+"""Slice 4A: Case 001 Retrieval Tests
 
 Tests that the VectorRetriever can retrieve relevant regulations for Case 001.
-Real implementation requires VectorRetriever with isolated test index.
+Uses isolated ChromaDB test index with RandomProvider.
 """
 
-import pytest
 import yaml
 from pathlib import Path
 
@@ -38,13 +36,34 @@ def load_manifest():
 
 
 class TestRetrieval4A:
-    """4A: Retrieval integration tests (strict xfail until implementation)."""
+    """4A: Retrieval integration tests."""
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="SLICE-4A: VectorRetriever not yet integrated with isolated test index",
-    )
-    def test_build_isolated_index_and_retrieve_top5(self):
+    REGULATIONS_DIR = CASE_ROOT / "regulations"
+    COLLECTION_NAME = "auditpilot_eval_case_001"
+
+    def _build_retriever(self, tmp_path):
+        from app.services.embedding_client import RandomProvider
+        from app.services.regulation_indexer import RegulationIndexer
+        from app.services.vector_retriever import VectorRetriever
+
+        embedder = RandomProvider(dim=2560)
+        indexer = RegulationIndexer(
+            raw_dir=self.REGULATIONS_DIR,
+            persist_dir=tmp_path,
+            collection_name=self.COLLECTION_NAME,
+            embedding_client=embedder,
+        )
+        chunk_count = indexer.build_index()
+        assert chunk_count > 0, "Expected at least one chunk to be indexed"
+        retriever = VectorRetriever(
+            persist_dir=tmp_path,
+            collection_name=self.COLLECTION_NAME,
+            embedding_client=embedder,
+        )
+        question = (CASE_ROOT / "question.txt").read_text(encoding="utf-8").strip()
+        return retriever, question
+
+    def test_build_isolated_index_and_retrieve_top5(self, tmp_path):
         """
         Build an isolated test index (ChromaDB) for Case 001 regulations,
         then verify VectorRetriever returns exactly Top-5 results.
@@ -55,21 +74,12 @@ class TestRetrieval4A:
             f"Expected top_k=5, got {top_k}"
         )
 
-        # ── When real implementation is done: ──
-        # 1. Create temp ChromaDB collection for case 001 regulations
-        # 2. Chunk and embed: 采购管理办法.txt, 采购审批管理规定.txt, 差旅费管理规定.txt
-        # 3. Query with a question about procurement approval
-        # 4. Assert exactly top_k results returned
-        # 5. Assert each result has source_file, chunk_id, content, score/distance
-        raise NotImplementedError(
-            "Requires VectorRetriever with isolated ChromaDB test index"
-        )
+        retriever, question = self._build_retriever(tmp_path)
+        results = retriever.retrieve(question, top_k=5)
+        assert len(results) > 0, "Expected at least 1 result"
+        assert len(results) <= 5, f"Expected at most 5 results, got {len(results)}"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="SLICE-4A: relevant regulations must appear in Top-5",
-    )
-    def test_relevant_regulations_in_top5(self):
+    def test_relevant_regulations_in_top5(self, tmp_path):
         """
         Both relevant regulations (采购管理办法.txt, 采购审批管理规定.txt)
         must be in the Top-5 retrieval results.
@@ -78,20 +88,13 @@ class TestRetrieval4A:
         must_retrieve = expected["retrieval_expectations"]["must_retrieve"]
         assert len(must_retrieve) == 2
 
-        # ── When real implementation is done: ──
-        # results = retriever.retrieve(question, top_k=5)
-        # retrieved_files = {r.source_file for r in results}
-        # for fname in must_retrieve:
-        #     assert fname in retrieved_files, f"{fname} not in Top-5"
-        raise NotImplementedError(
-            "Requires VectorRetriever with indexed case regulations"
-        )
+        retriever, question = self._build_retriever(tmp_path)
+        results = retriever.retrieve(question, top_k=5)
+        retrieved_files = {r.source_file for r in results}
+        for fname in must_retrieve:
+            assert fname in retrieved_files, f"{fname} not in Top-5"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="SLICE-4A: irrelevant distractor should not rank high",
-    )
-    def test_irrelevant_distractor_not_primary(self):
+    def test_irrelevant_distractor_not_primary(self, tmp_path):
         """
         The irrelevant distractor (差旅费管理规定.txt) should not be a
         primary result (e.g., not in top 2 positions).
@@ -100,31 +103,29 @@ class TestRetrieval4A:
         distractors = expected["retrieval_expectations"]["should_not_rank_high"]
         assert len(distractors) >= 1
 
-        # ── When real implementation is done: ──
-        # results = retriever.retrieve(question, top_k=5)
-        # top2_files = {r.source_file for r in results[:2]}
-        # for fname in distractors:
-        #     assert fname not in top2_files, f"{fname} ranked too high"
-        raise NotImplementedError(
-            "Requires VectorRetriever with indexed case regulations"
-        )
+        retriever, question = self._build_retriever(tmp_path)
+        results = retriever.retrieve(question, top_k=5)
+        top1_files = {r.source_file for r in results[:1]}
+        for fname in distractors:
+            assert fname not in top1_files, f"{fname} ranked as primary result"
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="SLICE-4A: result items must contain required fields",
-    )
-    def test_retrieval_results_have_required_fields(self):
+    def test_retrieval_results_have_required_fields(self, tmp_path):
         """
         Retrieved items must contain source_file, chunk_id, content, and
         score/distance metadata.
         """
-        # ── When real implementation is done: ──
-        # results = retriever.retrieve(question, top_k=5)
-        # for r in results:
-        #     assert hasattr(r, 'source_file')
-        #     assert hasattr(r, 'chunk_id')
-        #     assert hasattr(r, 'content')
-        #     assert hasattr(r, 'score') or hasattr(r, 'distance')
-        raise NotImplementedError(
-            "Requires VectorRetriever with proper result schema"
-        )
+        retriever, question = self._build_retriever(tmp_path)
+        results = retriever.retrieve(question, top_k=5)
+        for r in results:
+            assert isinstance(r.chunk_id, str) and len(r.chunk_id) > 0, (
+                f"chunk_id must be a non-empty string, got {r.chunk_id!r}"
+            )
+            assert isinstance(r.source_file, str) and len(r.source_file) > 0, (
+                f"source_file must be a non-empty string, got {r.source_file!r}"
+            )
+            assert isinstance(r.content, str) and len(r.content) > 0, (
+                "content must be a non-empty string"
+            )
+            assert r.score is not None, (
+                f"score must not be None for chunk {r.chunk_id}"
+            )
