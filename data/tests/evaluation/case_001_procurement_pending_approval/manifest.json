@@ -1,0 +1,18 @@
+{
+  "case_id": "case_001_procurement_pending_approval",
+  "classification": "synthetic_non_sensitive",
+  "materials": [
+    "materials/采购项目说明.md",
+    "materials/供应商报价.xlsx",
+    "materials/采购审批单_scan.png",
+    "materials/合同草案.txt"
+  ],
+  "regulations": [
+    "regulations/采购管理办法.txt",
+    "regulations/采购审批管理规定.txt",
+    "regulations/差旅费管理规定.txt"
+  ],
+  "ground_truth": [
+    "ground_truth/采购审批单_ground_truth.txt"
+  ]
+}

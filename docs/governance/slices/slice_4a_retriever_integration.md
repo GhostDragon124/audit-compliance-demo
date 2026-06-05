@@ -16,6 +16,32 @@ AuditPilot 已预留 regulation indexing、embedding 和 vector retrieval 模块
 - 不重构前端
 - 不改变 Full Text Flow
 
+## Case 001 test file paths
+
+- `backend/tests/evaluation/test_case_001_retrieval.py`
+- `backend/tests/evaluation/case_001_loader.py`
+
+## xfail names
+
+All tests in `TestRetrieval4A` class are strict xfail with reason containing `SLICE-4A`:
+
+1. `test_build_isolated_index_and_retrieve_top5`
+2. `test_relevant_regulations_in_top5`
+3. `test_irrelevant_distractor_not_primary`
+4. `test_retrieval_results_have_required_fields`
+
+## DoD for xfail removal
+
+When VectorRetriever is integrated with an isolated ChromaDB test index:
+
+1. Build temp ChromaDB collection indexing Case 001 regulations
+2. Embed with fake embedding (no real network call)
+3. Query returns Top-5 results
+4. Both 采购管理办法.txt and 采购审批管理规定.txt are in Top-5
+5. 差旅费管理规定.txt is NOT in the top 2 positions
+6. Each result item contains source_file, chunk_id, content, score/distance
+7. All four 4A tests transition from xfail to normal pass
+
 ## Allowed files
 
 Requires Project Owner approval before execution.
@@ -26,11 +52,14 @@ Requires Project Owner approval before execution.
 
 ## Required tests
 
-Requires Project Owner approval before execution.
+- `backend/tests/evaluation/test_case_001_retrieval.py`
 
 ## Acceptance commands
 
-Requires Project Owner approval before execution.
+```bash
+cd backend
+.venv/bin/python -m pytest tests/evaluation/test_case_001_retrieval.py -vv
+```
 
 ## Risks
 

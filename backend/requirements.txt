@@ -7,4 +7,5 @@ pytesseract
 PyMuPDF
 python-docx
 openpyxl
+PyYAML
 chromadb

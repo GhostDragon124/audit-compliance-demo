@@ -1,0 +1,75 @@
+case_id: case_001_procurement_pending_approval
+title: 采购项目未完成审批且采购方式可能不符合规定
+data_classification: synthetic_non_sensitive
+
+question: >
+  请分析这些采购材料中可能存在的合规风险，
+  并说明引用的制度依据、证据不足点和需要人工复核的事项。
+
+materials:
+  - materials/采购项目说明.md
+  - materials/供应商报价.xlsx
+  - materials/采购审批单_scan.png
+  - materials/合同草案.txt
+
+regulations:
+  relevant:
+    - regulations/采购管理办法.txt
+    - regulations/采购审批管理规定.txt
+  irrelevant_distractor:
+    - regulations/差旅费管理规定.txt
+
+expected_ocr_fields:
+  - 实验室服务器采购项目
+  - 850,000
+  - 询价采购
+  - 财务审批意见
+  - 待审批
+  - 分管领导意见
+  - 未签字
+  - 审批中
+
+retrieval_expectations:
+  top_k: 5
+  must_retrieve:
+    - 采购管理办法.txt
+    - 采购审批管理规定.txt
+  should_not_rank_high:
+    - 差旅费管理规定.txt
+
+expected_risk_points:
+  - 采购金额达到公开招标标准，但材料显示采用询价采购
+  - 未发现采用非公开招标方式所需的专项审批材料
+  - 财务审批和分管领导审批尚未完成
+  - 在审批未完成的情况下，已经确定拟供应商并生成合同草案
+
+expected_uncertainties:
+  - 是否存在尚未上传的专项审批文件
+  - 是否存在尚未上传的完整审批记录
+  - 合同草案是否已经正式签署
+
+must_include_concepts:
+  - 可能存在合规风险
+  - 需要人工复核
+  - 当前材料证据不足
+  - 制度有效性需要人工确认
+
+must_not_claim:
+  - 已确认违法
+  - 已最终确认不合规
+  - 已完成最终审计
+  - 不存在于检索结果中的制度或条款编号
+
+pass_criteria:
+  engineering:
+    - 所有材料成功解析或返回可解释状态
+    - OCR关键字段大部分识别成功
+    - 无未处理的500错误
+    - retrieved_regulations包含来源文件与chunk_id
+  retrieval:
+    - 两份相关制度均进入Top-5
+    - 无关差旅费制度不应成为主要依据
+  generation:
+    - 至少指出三个expected_risk_points
+    - 不编造制度来源
+    - 明确提示人工复核
