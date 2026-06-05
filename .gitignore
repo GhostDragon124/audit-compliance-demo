@@ -1,5 +1,4 @@
 # Backend
-backend/.env
 backend/.venv/
 backend/uploads/*
 !backend/uploads/.gitkeep
@@ -14,8 +13,21 @@ frontend/dist/
 .DS_Store
 .codex
 
+# ── Owner-local agent workflow and governance (local-only, NOT committed) ──
+/AGENTS.md
+/docs/
+/.hermes/
+
+# Machine-local runtime configuration (never commit real credentials)
+/backend/.env
+.env
+
+# Local acceptance evidence and outputs
+/local_acceptance_outputs/
+
 # Knowledge base (large, sensitive)
 data/regulations/raw/知识库/
+data/indexes/
 
 # PaddleOCR model cache & test artifacts
 .paddleocr/
