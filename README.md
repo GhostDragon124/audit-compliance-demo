@@ -113,6 +113,26 @@ PDF_MAX_PAGES=100
 | GET | `/health` | 健康检查 |
 | POST | `/api/analyze` | 上传文件 + 问题 → 审计分析 |
 
+## 合成测试数据
+
+Case 001（采购审批合规风险）提供了完整的合成数据，可直接用于体验系统：
+
+```
+data/tests/evaluation/case_001_procurement_pending_approval/
+├── question.txt                  # 审计问题
+├── manifest.json                 # 材料清单
+├── expected_results.yaml         # 预期结果（测试用）
+├── materials/
+│   ├── 采购项目说明.md            # 项目背景（Markdown）
+│   ├── 采购项目说明.docx          # 项目背景（Word）
+│   ├── 供应商报价.xlsx            # 供应商报价（Excel）
+│   ├── 采购审批单_scan.png        # 审批单（扫描图片，需OCR）
+│   └── 合同草案.txt              # 合同草案（纯文本）
+└── regulations/                  # 制度文件（3 份，可索引到 ChromaDB）
+```
+
+上传 `materials/` 中的所有文件，输入 `question.txt` 中的问题即可体验完整审计分析流程。所有数据均为合成测试数据，不包含真实信息。
+
 ## Project Structure
 
 ```text
