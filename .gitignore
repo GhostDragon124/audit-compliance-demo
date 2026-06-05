@@ -16,3 +16,9 @@ frontend/dist/
 
 # Knowledge base (large, sensitive)
 data/regulations/raw/知识库/
+
+# PaddleOCR model cache & test artifacts
+.paddleocr/
+.paddlex/
+ocr_test_output/
+ocr_test.png

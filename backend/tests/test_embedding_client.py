@@ -5,21 +5,33 @@ from app.services import embedding_client as embedding_module
 from app.services.embedding_client import EmbeddingClient
 
 
-def test_settings_default_embedding_provider_is_random() -> None:
-    assert Settings().embedding_provider == "random"
+def test_settings_default_embedding_provider_is_openai_compatible() -> None:
+    settings = Settings()
+
+    assert settings.embedding_provider == "openai_compatible"
+    assert settings.embedding_model == "/models"
+    assert settings.embedding_base_url == "http://127.0.0.1:8085/v1"
 
 
-def test_random_provider_returns_reproducible_384_dim_vectors() -> None:
+def test_random_provider_returns_reproducible_2560_dim_vectors() -> None:
     client = EmbeddingClient(provider="random")
 
     embeddings = client.embed_texts(["alpha", "beta", "alpha"])
     repeated_embeddings = EmbeddingClient(provider="random").embed_texts(["alpha", "beta"])
 
     assert len(embeddings) == 3
-    assert all(len(embedding) == 384 for embedding in embeddings)
+    assert all(len(embedding) == 2560 for embedding in embeddings)
     assert embeddings[0] == embeddings[2]
     assert embeddings[:2] == repeated_embeddings
     assert embeddings[0] != embeddings[1]
+
+
+def test_random_provider_dim_override_is_preserved() -> None:
+    client = EmbeddingClient(provider="random", dim=384)
+
+    embeddings = client.embed_texts(["alpha"])
+
+    assert len(embeddings[0]) == 384
 
 
 def test_embed_empty_list_returns_empty() -> None:

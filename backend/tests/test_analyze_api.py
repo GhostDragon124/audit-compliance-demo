@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.services.document_parser import DocumentParser
+from app.services.llm_client import LLMConnectionError, LLMServiceError, LLMTimeoutError
 
 
 def _upload_file(path: Path, content_type: str = "text/plain") -> tuple[str, tuple[str, bytes, str]]:
@@ -176,3 +177,38 @@ async def test_analyze_mixed_files(
     assert parsed_files["sample.png"]["error"] == "OCR failed"
     assert parsed_files["sample.txt"]["status"] == "parsed"
     assert "采购审批" in parsed_files["sample.txt"]["preview"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("error", "expected_status", "expected_detail"),
+    [
+        (LLMTimeoutError("网关超时"), 504, "模型服务超时，请稍后重试"),
+        (LLMConnectionError("无法连接模型服务"), 503, "无法连接模型服务"),
+        (LLMServiceError(502, "模型返回格式异常"), 502, "模型返回格式异常"),
+        (LLMServiceError(503, "模型服务繁忙"), 503, "模型服务繁忙"),
+    ],
+)
+async def test_analyze_maps_llm_errors_to_http(
+    client: httpx.AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+    expected_status: int,
+    expected_detail: str,
+) -> None:
+    class FailingAuditEngine:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            pass
+
+        async def analyze(self, *args: object, **kwargs: object):
+            raise error
+
+    monkeypatch.setattr("app.main.AuditEngine", FailingAuditEngine)
+
+    response = await client.post(
+        "/api/analyze",
+        data={"question": "触发模型错误"},
+    )
+
+    assert response.status_code == expected_status
+    assert response.json()["detail"] == expected_detail

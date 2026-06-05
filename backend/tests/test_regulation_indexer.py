@@ -1,10 +1,14 @@
 from pathlib import Path
 
+import httpx
 import pytest
 
 from app.config import Settings
 from app.services import regulation_indexer as indexer_module
+from app.services.chroma_vector_store import COLLECTION_METADATA, ChromaCollectionMetadataError
+from app.services.embedding_client import EmbeddingClient
 from app.services.regulation_indexer import RegulationIndexer
+from chromadb.errors import NotFoundError
 
 
 class FakeEmbeddingClient:
@@ -17,7 +21,8 @@ class FakeEmbeddingClient:
 
 
 class FakeCollection:
-    def __init__(self) -> None:
+    def __init__(self, metadata: dict[str, object] | None = None) -> None:
+        self.metadata = metadata or {}
         self.add_calls: list[dict[str, object]] = []
 
     def add(self, *, ids, documents, embeddings, metadatas) -> None:
@@ -33,22 +38,34 @@ class FakeCollection:
 
 class FakePersistentClient:
     collection = FakeCollection()
+    existing_collection: FakeCollection | None = None
     init_paths: list[str] = []
     collection_names: list[str] = []
+    collection_metadata: list[dict[str, object] | None] = []
 
     def __init__(self, path: str) -> None:
         self.init_paths.append(path)
 
-    def get_or_create_collection(self, name: str) -> FakeCollection:
+    def get_collection(self, name: str) -> FakeCollection:
+        if self.existing_collection is None:
+            raise NotFoundError(f"Collection [{name}] does not exist")
         self.collection_names.append(name)
-        return self.collection
+        return self.existing_collection
+
+    def create_collection(self, name: str, metadata: dict[str, object] | None = None) -> FakeCollection:
+        self.collection_names.append(name)
+        self.collection_metadata.append(metadata)
+        type(self).collection.metadata = dict(metadata or {})
+        return type(self).collection
 
 
 @pytest.fixture
 def fake_chroma(monkeypatch: pytest.MonkeyPatch) -> FakeCollection:
     FakePersistentClient.collection = FakeCollection()
+    FakePersistentClient.existing_collection = None
     FakePersistentClient.init_paths = []
     FakePersistentClient.collection_names = []
+    FakePersistentClient.collection_metadata = []
     monkeypatch.setattr(indexer_module.chromadb, "PersistentClient", FakePersistentClient)
     return FakePersistentClient.collection
 
@@ -89,6 +106,33 @@ def test_build_index_returns_chunk_count(
     assert fake_chroma.add_calls[0]["documents"] == embedding_client.text_batches[0]
     assert FakePersistentClient.init_paths == [str(tmp_path / "chroma")]
     assert FakePersistentClient.collection_names == ["test_regulations"]
+
+
+def test_collection_metadata_is_written(
+    tmp_path: Path,
+    fake_chroma: FakeCollection,
+    indexer_settings: Settings,
+) -> None:
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+
+    make_indexer(raw_dir, tmp_path / "chroma", FakeEmbeddingClient())
+
+    assert FakePersistentClient.collection_metadata == [COLLECTION_METADATA]
+    assert fake_chroma.metadata == COLLECTION_METADATA
+
+
+def test_collection_metadata_mismatch_requires_rebuild(
+    tmp_path: Path,
+    fake_chroma: FakeCollection,
+    indexer_settings: Settings,
+) -> None:
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    FakePersistentClient.existing_collection = FakeCollection({**COLLECTION_METADATA, "embedding_dimension": 384})
+
+    with pytest.raises(ChromaCollectionMetadataError, match="rebuild the index"):
+        make_indexer(raw_dir, tmp_path / "chroma", FakeEmbeddingClient())
 
 
 def test_chunk_metadata_has_source_file(
@@ -180,3 +224,39 @@ def test_doc_conversion(
     ]
     assert fake_chroma.add_calls[0]["documents"] == ["旧版制度正文。"]
     assert fake_chroma.add_calls[0]["metadatas"][0]["year_hint"] == "2019"
+
+
+@pytest.mark.local_embedding
+def test_build_index_with_real_embedding_client_writes_2560_vectors(tmp_path: Path) -> None:
+    settings = Settings()
+    if settings.embedding_provider != "openai_compatible":
+        pytest.skip("BLOCKED: set EMBEDDING_PROVIDER=openai_compatible for real embedding validation.")
+
+    embedding_client = EmbeddingClient(
+        provider="openai_compatible",
+        model=settings.embedding_model,
+        base_url=settings.embedding_base_url,
+        timeout=2.0,
+    )
+    try:
+        probe = embedding_client.embed_texts(["采购审批制度向量连通性测试。"])[0]
+    except httpx.TransportError as exc:
+        pytest.skip(f"BLOCKED: embedding endpoint {settings.embedding_base_url} is not reachable: {exc}")
+
+    assert len(probe) == 2560
+
+    raw_dir = tmp_path / "raw"
+    raw_dir.mkdir()
+    (raw_dir / "policy_2026.txt").write_text("采购审批制度正文。", encoding="utf-8")
+
+    indexer = RegulationIndexer(
+        raw_dir=raw_dir,
+        persist_dir=tmp_path / "chroma",
+        collection_name="real_embedding_regulations",
+        embedding_client=embedding_client,
+    )
+
+    assert indexer.build_index() == 1
+    stored = indexer.collection.get(include=["embeddings"])
+    assert len(stored["embeddings"][0]) == 2560
+

@@ -6,9 +6,9 @@ from typing import Any
 import httpx
 
 
-DEFAULT_EMBEDDING_MODEL = "BAAI/bge-small-zh-v1.5"
-DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "http://localhost:8083/v1"
-DEFAULT_EMBEDDING_DIM = 384
+DEFAULT_EMBEDDING_MODEL = "/models"
+DEFAULT_OPENAI_COMPATIBLE_BASE_URL = "http://127.0.0.1:8085/v1"
+DEFAULT_EMBEDDING_DIM = 2560
 
 
 class RandomProvider:
@@ -79,6 +79,7 @@ class EmbeddingClient:
         base_url: str = DEFAULT_OPENAI_COMPATIBLE_BASE_URL,
         api_key: str = "",
         dim: int = DEFAULT_EMBEDDING_DIM,
+        timeout: float = 60.0,
         model_name: str | None = None,
         device: str | None = None,
     ) -> None:
@@ -92,6 +93,7 @@ class EmbeddingClient:
                 model=model,
                 base_url=base_url,
                 api_key=api_key,
+                timeout=timeout,
             )
         elif provider == "random":
             self._provider = RandomProvider(dim=dim)

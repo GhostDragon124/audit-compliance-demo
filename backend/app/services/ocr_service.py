@@ -1,6 +1,10 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from threading import Lock
 from typing import Any
+
+_paddle_lock = Lock()
+_paddle_cache: dict[str, Any] = {}
 
 
 SUPPORTED_IMAGE_SUFFIXES = {
@@ -32,39 +36,31 @@ class PaddleOCRProvider(OCRProvider):
 
     def extract(self, image_path: Path) -> str:
         try:
-            result = self.ocr.ocr(str(image_path), cls=True)
-        except TypeError:
-            try:
-                result = self.ocr.ocr(str(image_path))
-            except Exception as exc:
-                raise OCRException(f"PaddleOCR extraction failed: {exc}") from exc
+            result = self.ocr.ocr(str(image_path), textline_orientation=True)
         except Exception as exc:
             raise OCRException(f"PaddleOCR extraction failed: {exc}") from exc
 
         return "\n".join(_extract_paddle_text(result)).strip()
 
     def _create_ocr(self) -> Any:
+        cache_key = f"{self.lang}:{self.device}"
+        with _paddle_lock:
+            if cache_key in _paddle_cache:
+                return _paddle_cache[cache_key]
+
         try:
             from paddleocr import PaddleOCR
         except Exception as exc:
             raise OCRException(f"PaddleOCR is unavailable: {exc}") from exc
 
-        use_gpu = self.device.lower() not in {"cpu", ""}
-        init_attempts = [
-            {"lang": self.lang, "use_angle_cls": True, "use_gpu": use_gpu, "show_log": False},
-            {"lang": self.lang, "use_angle_cls": True, "use_gpu": use_gpu},
-            {"lang": self.lang},
-        ]
-        last_error: Exception | None = None
-        for kwargs in init_attempts:
-            try:
-                return PaddleOCR(**kwargs)
-            except TypeError as exc:
-                last_error = exc
-            except Exception as exc:
-                raise OCRException(f"PaddleOCR initialization failed: {exc}") from exc
+        try:
+            instance = PaddleOCR(lang=self.lang, use_textline_orientation=True)
+        except Exception as exc:
+            raise OCRException(f"PaddleOCR initialization failed: {exc}") from exc
 
-        raise OCRException(f"PaddleOCR initialization failed: {last_error}")
+        with _paddle_lock:
+            _paddle_cache[cache_key] = instance
+        return instance
 
 
 class TesseractProvider(OCRProvider):

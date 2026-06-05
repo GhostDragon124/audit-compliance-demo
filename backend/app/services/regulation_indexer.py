@@ -7,6 +7,7 @@ from typing import Protocol
 import chromadb
 
 from app.config import get_settings
+from app.services.chroma_vector_store import get_or_create_regulation_collection
 from app.services.document_parser import DocumentParser
 
 
@@ -35,7 +36,7 @@ class RegulationIndexer:
         self.embedding_client = embedding_client
         self.document_parser = DocumentParser()
         self.chroma_client = chromadb.PersistentClient(path=str(persist_dir))
-        self.collection = self.chroma_client.get_or_create_collection(collection_name)
+        self.collection = get_or_create_regulation_collection(self.chroma_client, collection_name)
 
         if self.chunk_size <= 0:
             raise ValueError("chunk_size must be greater than zero")

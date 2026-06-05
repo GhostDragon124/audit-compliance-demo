@@ -6,8 +6,8 @@ from typing import Protocol
 from xml.etree import ElementTree
 from zipfile import ZipFile
 
-from app.config import get_settings
-from app.schemas import ParsedFileSummary
+from app.config import Settings, get_settings
+from app.models import ParsedDocument
 from app.services.ocr_service import OCRService, SUPPORTED_IMAGE_SUFFIXES
 
 
@@ -22,16 +22,25 @@ class DocumentParser:
     supported_suffixes = text_suffixes | image_suffixes
     pdf_ocr_max_pages = 50
 
-    def __init__(self, ocr_service: OCRTextExtractor | None = None):
+    def __init__(
+        self,
+        ocr_service: OCRTextExtractor | None = None,
+        settings: Settings | None = None,
+    ):
         self._ocr_service = ocr_service
+        self.configure(settings or get_settings())
 
-    def parse(self, file_path: Path, original_filename: str) -> ParsedFileSummary:
+    def configure(self, settings: Settings) -> None:
+        self._settings = settings
+        self.pdf_max_pages = settings.pdf_max_pages
+
+    def parse(self, file_path: Path, original_filename: str) -> ParsedDocument:
         suffix = file_path.suffix.lower()
         if suffix not in self.supported_suffixes:
-            return ParsedFileSummary(
+            return self._document(
                 filename=original_filename,
                 status="unsupported",
-                preview="",
+                full_text="",
                 error=f"Unsupported file type: {suffix or 'unknown'}",
             )
 
@@ -40,7 +49,7 @@ class DocumentParser:
 
         try:
             if suffix == ".csv":
-                content = self._read_csv_preview(file_path)
+                content = self._read_csv(file_path)
             elif suffix == ".pdf":
                 content = self._read_pdf(file_path)
             elif suffix == ".docx":
@@ -50,85 +59,114 @@ class DocumentParser:
             else:
                 content = file_path.read_text(encoding="utf-8", errors="replace")
 
-            return ParsedFileSummary(
+            return self._document(
                 filename=original_filename,
                 status="parsed",
-                preview=self._preview(content),
+                full_text=content,
             )
         except Exception as exc:
-            return ParsedFileSummary(
+            return self._document(
                 filename=original_filename,
                 status="failed",
-                preview="",
+                full_text="",
                 error=str(exc),
             )
 
-    def _parse_image(self, file_path: Path, original_filename: str) -> ParsedFileSummary:
+    def _parse_image(self, file_path: Path, original_filename: str) -> ParsedDocument:
         try:
             content = self._get_ocr_service().extract_text(file_path)
             if not content.strip():
-                return ParsedFileSummary(
+                return self._document(
                     filename=original_filename,
                     status="failed",
-                    preview="",
+                    full_text="",
                     error="No text detected in image",
                 )
 
-            return ParsedFileSummary(
+            return self._document(
                 filename=original_filename,
                 status="ocr_parsed",
-                preview=self._preview(content),
+                full_text=content,
             )
         except Exception as exc:
-            return ParsedFileSummary(
+            return self._document(
                 filename=original_filename,
                 status="failed",
-                preview="",
+                full_text="",
                 error=str(exc),
             )
 
     def _get_ocr_service(self) -> OCRTextExtractor:
         if self._ocr_service is None:
-            settings = get_settings()
             self._ocr_service = OCRService(
-                provider=settings.ocr_provider,
-                device=settings.ocr_device,
-                lang=settings.ocr_lang,
-                enabled=settings.ocr_enable,
+                provider=self._settings.ocr_provider,
+                device=self._settings.ocr_device,
+                lang=self._settings.ocr_lang,
+                enabled=self._settings.ocr_enable,
             )
         return self._ocr_service
 
-    def _read_csv_preview(self, file_path: Path) -> str:
+    def _read_csv(self, file_path: Path) -> str:
         rows: list[str] = []
         with file_path.open("r", encoding="utf-8", errors="replace", newline="") as csv_file:
             reader = csv.reader(csv_file)
-            for index, row in enumerate(reader):
-                if index >= 20:
-                    break
+            for row in reader:
                 rows.append(", ".join(row))
         return "\n".join(rows)
 
     def _read_pdf(self, file_path: Path) -> str:
         try:
-            import fitz  # noqa: F401
+            import fitz
         except ModuleNotFoundError:
             return self._read_pdf_without_pymupdf(file_path)
 
-        text, total_pages = self._extract_pdf_text(file_path)
-        text_chars = len(text.strip())
-        avg_chars_per_page = text_chars / max(total_pages, 1)
-        if avg_chars_per_page < 20 or text_chars < 50:
-            return self._ocr_pdf_pages(file_path)
-        return text
+        page_texts: list[str] = []
+        errors: list[str] = []
+        processed_pages = 0
+        ocr_pages = 0
+        with fitz.open(str(file_path)) as pdf_document:
+            total_pages = len(pdf_document)
+            page_limit = min(total_pages, self.pdf_max_pages)
+            for page_index in range(page_limit):
+                page = pdf_document[page_index]
+                page_number = page_index + 1
+                page_text = page.get_text().strip()
+                if len(page_text) < 20:
+                    if ocr_pages >= self.pdf_ocr_max_pages:
+                        break
+                    ocr_pages += 1
+                    try:
+                        page_text = self._ocr_single_page(page, page_number)
+                    except Exception as exc:
+                        errors.append(str(exc))
+                        page_text = ""
+                page_texts.append(f"[Page {page_number}]\n{page_text}")
+                processed_pages = page_number
+
+            result = "\n".join(page_texts)
+            if processed_pages < total_pages:
+                result += f"\n[仅处理前 {processed_pages} 页，共 {total_pages} 页]"
+
+        if any(page_text.split("\n", maxsplit=1)[-1].strip() for page_text in page_texts):
+            return result
+        if errors:
+            raise RuntimeError(f"OCR fallback failed: {errors[0]}")
+        return result
 
     def _extract_pdf_text(self, file_path: Path) -> tuple[str, int]:
         import fitz
 
         page_texts: list[str] = []
         with fitz.open(str(file_path)) as pdf_document:
-            for page_number, page in enumerate(pdf_document, start=1):
+            page_count = min(len(pdf_document), self.pdf_max_pages)
+            for page_index in range(page_count):
+                page = pdf_document[page_index]
+                page_number = page_index + 1
                 page_texts.append(f"[Page {page_number}]\n{page.get_text()}")
-            return "\n".join(page_texts), len(pdf_document)
+            result = "\n".join(page_texts)
+            if page_count < len(pdf_document):
+                result += f"\n[仅处理前 {page_count} 页，共 {len(pdf_document)} 页]"
+            return result, len(pdf_document)
 
     def _ocr_pdf_pages(self, file_path: Path) -> str:
         import fitz
@@ -137,32 +175,41 @@ class DocumentParser:
         errors: list[str] = []
         with fitz.open(str(file_path)) as pdf_document:
             page_count = min(len(pdf_document), self.pdf_ocr_max_pages)
-            for page_number in range(page_count):
-                page = pdf_document[page_number]
-                pixmap = page.get_pixmap(dpi=200)
-                image_file = NamedTemporaryFile(
-                    prefix=f"_ocr_page_{page_number + 1}_",
-                    suffix=".png",
-                    dir="/tmp",
-                    delete=False,
-                )
-                image_path = Path(image_file.name)
-                image_file.close()
+            for page_index in range(page_count):
+                page = pdf_document[page_index]
+                page_number = page_index + 1
                 try:
-                    pixmap.save(str(image_path))
-                    page_text = self._get_ocr_service().extract_text(image_path)
+                    page_text = self._ocr_single_page(page, page_number)
                 except Exception as exc:
                     errors.append(str(exc))
                     page_text = ""
-                finally:
-                    image_path.unlink(missing_ok=True)
-                page_texts.append(f"[Page {page_number + 1}]\n{page_text}")
+                page_texts.append(f"[Page {page_number}]\n{page_text}")
+
+            result = "\n".join(page_texts)
+            if page_count < len(pdf_document):
+                result += f"\n[仅处理前 {page_count} 页，共 {len(pdf_document)} 页]"
 
         if any(page_text.split("\n", maxsplit=1)[-1].strip() for page_text in page_texts):
-            return "\n".join(page_texts)
+            return result
         if errors:
             raise RuntimeError(f"OCR fallback failed: {errors[0]}")
         raise ValueError("No text detected by OCR fallback")
+
+    def _ocr_single_page(self, page, page_number: int) -> str:
+        pixmap = page.get_pixmap(dpi=200)
+        image_file = NamedTemporaryFile(
+            prefix=f"_ocr_page_{page_number}_",
+            suffix=".png",
+            dir="/tmp",
+            delete=False,
+        )
+        image_path = Path(image_file.name)
+        image_file.close()
+        try:
+            pixmap.save(str(image_path))
+            return self._get_ocr_service().extract_text(image_path)
+        finally:
+            image_path.unlink(missing_ok=True)
 
     def _read_docx(self, file_path: Path) -> str:
         try:
@@ -328,3 +375,22 @@ class DocumentParser:
         if len(normalized) <= max_length:
             return normalized
         return f"{normalized[:max_length]}..."
+
+    def _document(
+        self,
+        *,
+        filename: str,
+        status: str,
+        full_text: str,
+        error: str | None = None,
+    ) -> ParsedDocument:
+        normalized = full_text.strip()
+        return ParsedDocument(
+            filename=filename,
+            status=status,
+            full_text=normalized,
+            preview=self._preview(normalized),
+            error=error,
+            original_chars=len(normalized),
+            used_chars=len(normalized),
+        )
