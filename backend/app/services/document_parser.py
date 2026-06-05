@@ -243,7 +243,7 @@ class DocumentParser:
 
         libreoffice = os.environ.get("LIBREOFFICE_BIN", "libreoffice")
         with tempfile.TemporaryDirectory() as tmp:
-            result = subprocess.run(
+            _ = subprocess.run(
                 [
                     libreoffice, "--headless", "--convert-to", "txt:Text",
                     "--outdir", tmp, str(file_path),
