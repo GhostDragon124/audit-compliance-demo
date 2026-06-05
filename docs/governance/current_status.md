@@ -2,13 +2,13 @@
 
 - Current branch: `master`
 - Current commit: `1d2e7cb`
-- Current tag: `case-001-phase0-ready`
-- Test baseline: `scripts/verify.sh` PASS on 2026-06-05: `python -m compileall app` PASS, `python -m pytest` PASS (`126 passed, 13 xfailed, 7 deselected`), `ruff check .` PASS, `frontend npm run build` PASS.
-- Active tracks: `Case 001 Evaluation Harness (Phase 0 complete, Slice 4A complete)`
-- Current slice: `Slice 4A: Retriever Integration` — COMPLETE. All 4 strict xfail tests now pass normally.
-- Future slices: `Slice 4B: RAG Prompt Grounding` — PROPOSED, `Slice 4C: End-to-End Evaluation` — PROPOSED. Must NOT auto-execute.
-- Evaluation harness: `backend/tests/evaluation/` — Phase 0 (23 pass), 4A (4 pass), 4B (6 xfail), 4C (7 xfail).
-- Slice 4A implementation: Isolated ChromaDB test index using `RandomProvider` (fake embedding). Collection: `auditpilot_eval_case_001`. Both relevant regulations in Top-5, distractor not primary. Results contain `chunk_id`, `source_file`, `content`, `score`.
+- Current tag: `slice-4a-complete`
+- Test baseline: `scripts/verify.sh` PASS on 2026-06-05: `python -m compileall app` PASS, `python -m pytest` PASS (`132 passed, 7 xfailed, 7 deselected`), `ruff check .` PASS, `frontend npm run build` PASS.
+- Active tracks: `Case 001 Evaluation Harness (Phase 0, 4A, 4B complete)`
+- Current slice: `Slice 4B: RAG Prompt Grounding` — COMPLETE. All 6 strict xfail tests now pass normally.
+- Future slices: `Slice 4C: End-to-End Evaluation` — PROPOSED. Must NOT auto-execute.
+- AuditEngine: RAG prompt construction added (`build_rag_prompt`). Material full text + regulation fragments + source references + disclaimer. Fake retriever + fake LLM used in tests.
+- Evaluation harness: Phase 0 (23 pass), 4A (4 pass), 4B (6 pass), 4C (7 xfail).
 - Golden test case: Case 001 — 12 files tracked in Git.
 - P0: None
 - P1: None

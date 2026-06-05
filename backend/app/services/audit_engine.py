@@ -2,7 +2,7 @@ from pathlib import Path
 
 from app.config import Settings, get_settings
 from app.models import ParsedDocument
-from app.schemas import AnalyzeResponse, ParsedFileSummary
+from app.schemas import AnalyzeResponse, ParsedFileSummary, RegulationChunk
 from app.services.llm_client import LLMClient
 
 
@@ -52,6 +52,50 @@ class AuditEngine:
             f"{files_text}"
         )
         return prompt, truncation_notice
+
+    def build_rag_prompt(
+        self,
+        question: str,
+        parsed_files: list[ParsedAuditInput],
+        retrieved_regulations: list[RegulationChunk],
+    ) -> str:
+        """Build a prompt that includes material full text, regulation fragments
+        with source references, and a manual confirmation disclaimer.
+
+        This is a public method used by tests and by the analyze() flow.
+        """
+        file_sections, truncation_notice = self._build_file_sections(parsed_files)
+        files_text = "\n\n".join(file_sections) if file_sections else "未上传文件"
+        if truncation_notice and file_sections:
+            files_text = f"{truncation_notice}{files_text}"
+
+        # Build regulation fragments section
+        regulation_lines: list[str] = []
+        for reg in retrieved_regulations:
+            regulation_lines.append(
+                f"制度文件: {reg.source_file} (块: {reg.chunk_id})\n{reg.content}"
+            )
+        regulations_text = "\n---\n".join(regulation_lines) if regulation_lines else ""
+
+        if regulations_text:
+            prompt = (
+                f"{self.prompt_template}\n\n"
+                f"用户审核问题：\n{question}\n\n"
+                "上传材料解析结果：\n"
+                f"{files_text}\n\n"
+                "## 相关制度依据\n"
+                f"{regulations_text}\n\n"
+                "注意：以上制度内容由系统检索并提供，其有效性和适用性需要人工确认。"
+                "本结果由 AI 根据当前材料生成，仅供审计人员辅助参考。"
+            )
+        else:
+            prompt = (
+                f"{self.prompt_template}\n\n"
+                f"用户审核问题：\n{question}\n\n"
+                "上传材料解析结果：\n"
+                f"{files_text}"
+            )
+        return prompt
 
     def _build_file_sections(self, parsed_files: list[ParsedAuditInput]) -> tuple[list[str], str]:
         full_texts = [self._valid_full_text(parsed_file) for parsed_file in parsed_files]
