@@ -3,8 +3,10 @@
 This directory stores governance acceptance evidence:
 
 - Slice acceptance reports
+- Slice test plans
 - Gate Review reports
 - Real Provider validation reports
+- Real Provider validation guides
 - Deployment acceptance reports
 - Performance baselines
 
