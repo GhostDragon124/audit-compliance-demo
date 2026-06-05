@@ -139,7 +139,7 @@ function App() {
                   ))}
                 </div>
               ) : (
-                <div className="empty-state compact">当前 M0+ 暂未接入制度检索</div>
+                <div className="empty-state compact">未检索到相关制度</div>
               )}
             </div>
           </div>

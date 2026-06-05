@@ -1,9 +1,20 @@
 from pathlib import Path
+from typing import Any
+
+import httpx
 
 from app.config import Settings, get_settings
 from app.models import ParsedDocument
 from app.schemas import AnalyzeResponse, ParsedFileSummary, RegulationChunk
 from app.services.llm_client import LLMClient
+from app.services.rag_errors import (
+    CollectionMetadataMismatchError,
+    EmbeddingConnectionError,
+    EmbeddingServiceError,
+    EmbeddingTimeoutError,
+    RagServiceError,
+)
+from chromadb.errors import NotFoundError as ChromaNotFoundError
 
 
 ParsedAuditInput = ParsedDocument | ParsedFileSummary
@@ -20,15 +31,53 @@ class AuditEngine:
         self,
         question: str,
         parsed_files: list[ParsedAuditInput],
+        retriever: Any | None = None,
     ) -> AnalyzeResponse:
-        prompt, truncation_notice = self._build_prompt_with_notice(question, parsed_files)
+        settings = self.settings
+
+        if settings.rag_mode == "required" and retriever is not None:
+            retrieval_query = self._build_retrieval_query(question, parsed_files)
+            try:
+                retrieved = retriever.retrieve(retrieval_query, top_k=settings.rag_top_k)
+            except RagServiceError:
+                # Re-raise RAG-specific errors directly
+                raise
+            except ChromaNotFoundError as exc:
+                raise CollectionMetadataMismatchError(
+                    f"ChromaDB collection not found: {exc}"
+                ) from exc
+            except httpx.ConnectError as exc:
+                raise EmbeddingConnectionError(
+                    f"无法连接嵌入服务: {exc}"
+                ) from exc
+            except httpx.TimeoutException as exc:
+                raise EmbeddingTimeoutError(
+                    f"嵌入服务超时: {exc}"
+                ) from exc
+            except httpx.HTTPStatusError as exc:
+                raise EmbeddingServiceError(
+                    f"嵌入服务返回错误 (HTTP {exc.response.status_code}): {exc}"
+                ) from exc
+            except Exception as exc:
+                raise RagServiceError(
+                    f"检索服务错误: {exc}", status_code=500
+                ) from exc
+
+            prompt = self.build_rag_prompt(question, parsed_files, retrieved)
+            retrieved_list = retrieved
+            truncation_notice = ""
+        else:
+            # RAG disabled or no retriever — existing behavior
+            prompt, truncation_notice = self._build_prompt_with_notice(question, parsed_files)
+            retrieved_list = []
+
         answer_text = await self.llm_client.chat_completion(prompt)
         if truncation_notice:
             answer_text = f"{truncation_notice}{answer_text}"
         return AnalyzeResponse(
             answer_text=answer_text,
             parsed_files=[self._to_summary(parsed_file) for parsed_file in parsed_files],
-            retrieved_regulations=[],
+            retrieved_regulations=retrieved_list,
         )
 
     def _build_prompt(self, question: str, parsed_files: list[ParsedAuditInput]) -> str:
@@ -204,3 +253,12 @@ class AuditEngine:
             preview=parsed_file.preview,
             error=parsed_file.error,
         )
+
+    def _build_retrieval_query(self, question: str, parsed_files: list[ParsedAuditInput], max_chars: int = 2000) -> str:
+        """Build a deterministic retrieval query from question + file content."""
+        parts = [question]
+        for f in parsed_files:
+            text = self._valid_full_text(f)
+            parts.append(text[:500])
+        query = "\n\n".join(parts)
+        return query[:max_chars]

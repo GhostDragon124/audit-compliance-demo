@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     chunk_size: int = 1000
     chunk_overlap: int = 200
 
+    rag_mode: str = "disabled"  # "disabled" | "required"
+    rag_top_k: int = 5
+
     max_file_size_mb: int = 50
     max_total_upload_mb: int = 100
     max_files_per_request: int = 10

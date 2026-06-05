@@ -9,6 +9,7 @@ COLLECTION_METADATA: dict[str, str | int] = {
     "distance_metric": "cosine",
     "chunk_strategy_version": "1.0",
     "index_schema_version": "1.0",
+    "collection_role": "production_regulations",
 }
 
 

@@ -1,16 +1,17 @@
 # Current Status
 
 - Current branch: `master`
-- Current commit: `1e4af24`
-- Current tag: `slice-4b-complete`
-- Test baseline: `scripts/verify.sh` PASS on 2026-06-05: `python -m compileall app` PASS, `python -m pytest` PASS (`132 passed, 14 deselected`), `ruff check .` PASS, `frontend npm run build` PASS. E2E marker tests: `python -m pytest -m 'case001_e2e or case001_local_ocr'` → `7 passed`.
-- Active tracks: `Case 001 Evaluation Harness — ALL SLICES COMPLETE`
-- Current slice: `Slice 4C: End-to-End Evaluation` — COMPLETE. All 7 strict xfail tests now pass with real providers.
-- Future slices: None pending.
-- AuditEngine: RAG prompt construction (`build_rag_prompt`). VectorRetriever: isolated retrieval with ChromaDB. Full pipeline verified: parse/OCR → embed → retrieve → RAG prompt → Qwen → risk output.
-- Evaluation harness: Phase 0 (23 pass), 4A (4 pass), 4B (6 pass), 4C (7 pass). Total: 40 evaluation tests.
-- Production fix: ocr_service.py PaddleOCR 3.6.0 API compatibility (textline_orientation → use_textline_orientation).
-- Golden test case: Case 001 — 12 files tracked in Git. Full pipeline verified with real PaddleOCR + Qwen3.6-35B + Qwen3-Embedding-4B.
+- Current commit: `1f71f97`
+- Current tag: `slice-4c-complete`
+- Test baseline: `scripts/verify.sh` PASS: `python -m compileall app` PASS, `python -m pytest` PASS (`151 passed, 17 deselected`), `ruff check .` PASS, `frontend npm run build` PASS. Production RAG tests: `python -m pytest -m production_rag` → 3 passed.
+- Active tracks: `Slice 5: Production RAG Integration — COMPLETE`
+- Current slice: `Slice 5: Production RAG Integration` — COMPLETE. /api/analyze now auto-executes RAG when RAG_MODE=required.
+- RAG pipeline: real Qwen3-Embedding-4B (:8085) → ChromaDB "regulations" collection → VectorRetriever → AuditEngine.build_rag_prompt() → Qwen 35B (:8083).
+- Config: RAG_MODE (disabled|required), RAG_TOP_K=5. Default: disabled.
+- Error semantics: RagServiceError hierarchy (EmbeddingConnectionError/Timeout/Service/MetadataMismatch). No RandomProvider fallback.
+- Production index: data/indexes/chroma/regulations/ — indexed from data/regulations/raw/ with real embedding.
+- Collection metadata: collection_role=production_regulations enforced. Mismatch → rejected.
+- Frontend: "未检索到相关制度" when empty.
 - P0: None
 - P1: None
 - P2: None

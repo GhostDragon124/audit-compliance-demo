@@ -10,8 +10,11 @@ from app.config import get_settings
 from app.schemas import AnalyzeResponse, ParsedFileSummary
 from app.services.audit_engine import AuditEngine
 from app.services.document_parser import DocumentParser
+from app.services.embedding_client import EmbeddingClient
 from app.services.llm_client import LLMClient, LLMConnectionError, LLMServiceError, LLMTimeoutError
 from app.services.ocr_service import SUPPORTED_IMAGE_SUFFIXES
+from app.services.rag_errors import RagServiceError
+from app.services.vector_retriever import VectorRetriever
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 UPLOAD_DIR = BASE_DIR / "uploads"
@@ -89,13 +92,35 @@ async def analyze(
 
     llm_client = LLMClient(settings)
     audit_engine = AuditEngine(llm_client=llm_client, prompt_path=PROMPT_PATH, settings=settings)
+
+    # Create retriever when RAG_MODE=required
+    retriever = None
+    if settings.rag_mode == "required":
+        try:
+            embedder = EmbeddingClient(
+                provider=settings.embedding_provider,
+                model=settings.embedding_model,
+                base_url=settings.embedding_base_url,
+                api_key="",
+                dim=2560,
+            )
+            retriever = VectorRetriever(
+                persist_dir=settings.chroma_persist_dir,
+                collection_name=settings.chroma_collection_name,
+                embedding_client=embedder,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"无法初始化检索服务: {exc}") from exc
+
     try:
-        result = await audit_engine.analyze(question=question, parsed_files=parsed_docs)
+        result = await audit_engine.analyze(question=question, parsed_files=parsed_docs, retriever=retriever)
     except LLMTimeoutError as exc:
         raise HTTPException(status_code=504, detail="模型服务超时，请稍后重试") from exc
     except LLMConnectionError as exc:
         raise HTTPException(status_code=503, detail="无法连接模型服务") from exc
     except LLMServiceError as exc:
+        raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
+    except RagServiceError as exc:
         raise HTTPException(status_code=exc.status_code, detail=str(exc)) from exc
     finally:
         if settings.upload_cleanup:
