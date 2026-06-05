@@ -1,4 +1,5 @@
 import csv
+import os
 import re
 from tempfile import NamedTemporaryFile
 from pathlib import Path
@@ -17,7 +18,7 @@ class OCRTextExtractor(Protocol):
 
 
 class DocumentParser:
-    text_suffixes = {".txt", ".md", ".csv", ".pdf", ".docx", ".xlsx"}
+    text_suffixes = {".txt", ".md", ".csv", ".pdf", ".docx", ".xlsx", ".doc"}
     image_suffixes = SUPPORTED_IMAGE_SUFFIXES
     supported_suffixes = text_suffixes | image_suffixes
     pdf_ocr_max_pages = 50
@@ -56,6 +57,8 @@ class DocumentParser:
                 content = self._read_docx(file_path)
             elif suffix == ".xlsx":
                 content = self._read_xlsx(file_path)
+            elif suffix == ".doc":
+                content = self._read_doc(file_path)
             else:
                 content = file_path.read_text(encoding="utf-8", errors="replace")
 
@@ -232,6 +235,26 @@ class DocumentParser:
                 sections.append("\n".join(rows))
 
         return "\n\n".join(sections)
+
+    def _read_doc(self, file_path: Path) -> str:
+        """Parse legacy .doc files via LibreOffice headless conversion."""
+        import subprocess
+        import tempfile
+
+        libreoffice = os.environ.get("LIBREOFFICE_BIN", "libreoffice")
+        with tempfile.TemporaryDirectory() as tmp:
+            result = subprocess.run(
+                [
+                    libreoffice, "--headless", "--convert-to", "txt:Text",
+                    "--outdir", tmp, str(file_path),
+                ],
+                capture_output=True,
+                timeout=120,
+            )
+            txt = Path(tmp) / f"{file_path.stem}.txt"
+            if not txt.exists():
+                return ""
+            return txt.read_text(encoding="utf-8", errors="replace")
 
     def _read_xlsx(self, file_path: Path) -> str:
         try:

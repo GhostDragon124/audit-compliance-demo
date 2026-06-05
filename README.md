@@ -1,6 +1,6 @@
 # AuditPilot — 审计合规智能分析 Demo
 
-当前阶段：**Slice 3 完成，RAG 基础设施就绪**。53 个增量 commits，99 tests / 0 xfailed。
+当前阶段：**Slice 5 Production RAG 集成完成**。151 tests / 0 xfailed，production_rag 3 passed。
 
 ## 已实现
 
@@ -8,9 +8,10 @@
 - ✅ txt / md / csv 文本解析
 - ✅ PDF（PyMuPDF 文本提取 + 扫描页 OCR fallback）
 - ✅ DOCX（python-docx + 表格提取）
+- ✅ DOC（LibreOffice headless 转换）
 - ✅ XLSX（openpyxl + 多 sheet）
-- ✅ .doc 转换（LibreOffice headless）
 - ✅ 混合 PDF 逐页 OCR（文本页/扫描页混合文档）
+- ✅ 前端支持：txt / word / csv / png 文件选择
 - ✅ OCR 页数超限 partial 报告
 
 ### OCR
@@ -45,7 +46,7 @@
 - ✅ Token budget 比例分配
 
 ### 工程质量
-- ✅ pytest 99 tests / 0 xfailed
+- ✅ pytest 151 tests / 0 xfailed + 3 production_rag tests
 - ✅ CI（pytest + ruff + CodeQL）
 - ✅ 前端 build 通过
 
@@ -58,9 +59,7 @@
 | AuditPilot API | 8000 | FastAPI | `cd backend && fastapi dev` |
 
 部署文档详见：
-- [`/home/spark/文档/LLM_use_doc/qwen36-35b-fp8-vllm_deploy_experience.md`](/home/spark/文档/LLM_use_doc/qwen36-35b-fp8-vllm_deploy_experience.md) — 35B 模型
-- [`/home/spark/文档/LLM_use_doc/qwen3-embedding-4b-vllm_deploy_usage.md`](/home/spark/文档/LLM_use_doc/qwen3-embedding-4b-vllm_deploy_usage.md) — Embedding 模型
-- [`docs/deployment/deployment.md`](docs/deployment/deployment.md)
+- [`docs/deployment/deployment.md`](docs/deployment/deployment.md) — 项目部署指南
 
 ## 快速启动
 

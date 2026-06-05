@@ -67,10 +67,10 @@ function App() {
                 id="files"
                 type="file"
                 multiple
-                accept=".txt,.md,.csv"
+                accept=".txt,.md,.csv,.png,.docx,.doc"
                 onChange={handleFileChange}
               />
-              <span>{files.length > 0 ? `${files.length} 个文件已选择` : "选择 txt / md / csv 文件"}</span>
+              <span>{files.length > 0 ? `${files.length} 个文件已选择` : "选择 txt / word / csv / png 文件"}</span>
             </div>
             {files.length > 0 && <p className="file-names">{fileNames}</p>}
 
