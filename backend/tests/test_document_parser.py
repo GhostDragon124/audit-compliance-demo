@@ -77,22 +77,40 @@ def test_parse_xlsx_file(fixtures_dir: Path) -> None:
     assert parsed.error is None
 
 
-def test_parse_unsupported_doc_and_xls(fixtures_dir: Path) -> None:
+def test_parse_unsupported_xls(fixtures_dir: Path) -> None:
     parser = DocumentParser()
 
-    parsed_doc = parser.parse(fixtures_dir / "unsupported.doc", "unsupported.doc")
     parsed_xls = parser.parse(fixtures_dir / "unsupported.xls", "unsupported.xls")
 
-    assert parsed_doc.filename == "unsupported.doc"
-    assert parsed_doc.status == "unsupported"
-    assert parsed_doc.preview == ""
-    assert parsed_doc.error
-    assert "Unsupported file type" in parsed_doc.error
     assert parsed_xls.filename == "unsupported.xls"
     assert parsed_xls.status == "unsupported"
     assert parsed_xls.preview == ""
     assert parsed_xls.error
     assert "Unsupported file type" in parsed_xls.error
+
+
+def test_parse_doc_without_libreoffice(tmp_path: Path) -> None:
+    """.doc is a supported suffix (LibreOffice conversion), but if LibreOffice
+    is absent the parser should return a controlled 'failed' status."""
+    parser = DocumentParser()
+    doc_path = tmp_path / "test.doc"
+    doc_path.write_bytes(b"\xd0\xcf\x11\xe0")  # OLE2 magic bytes for .doc
+
+    # Override LIBREOFFICE_BIN to a nonexistent path to simulate missing LibreOffice
+    import os as _os
+    old_env = _os.environ.get("LIBREOFFICE_BIN")
+    _os.environ["LIBREOFFICE_BIN"] = "/nonexistent/libreoffice"
+
+    try:
+        parsed = parser.parse(doc_path, "test.doc")
+        assert parsed.status == "failed"
+        assert parsed.error is not None
+        assert "error" in parsed.error.lower() or "libreoffice" in parsed.error.lower()
+    finally:
+        if old_env is not None:
+            _os.environ["LIBREOFFICE_BIN"] = old_env
+        else:
+            _os.environ.pop("LIBREOFFICE_BIN", None)
 
 
 def test_parse_corrupted_pdf(tmp_path: Path) -> None:
