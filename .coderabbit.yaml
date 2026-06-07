@@ -1,0 +1,83 @@
+# CodeRabbit AI Review 配置 — AuditPilot
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+
+reviews:
+  # 自动审查所有 PR
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+      - develop
+
+  # 跳过这些路径（非代码文件、构建产物、测试数据）
+  path_filters:
+    - "!data/**"              # 测试数据和法规文件
+    - "!backend/uploads/**"   # 上传目录
+    - "!backend/.env.example" # 配置模板
+    - "!**/package-lock.json" # 锁文件
+    - "!**/*.png"             # 图片
+    - "!**/*.jpg"
+    - "!**/*.pdf"
+    - "!**/*.xlsx"
+    - "!**/*.docx"
+
+  # 审查意见风格
+  tone: "friendly"
+  language: "zh-CN"           # 中文评论
+
+  # 总结（PR 顶部的 Walkthrough）
+  summarize: true
+
+  # 只审查变更行，不审查整个文件
+  review_mode: "changed"
+
+chat:
+  # 允许在 PR 里 @coderabbitai 提问
+  auto_reply: true
+
+knowledge_base:
+  # 自动学习项目约定
+  learnings:
+    enabled: true
+    scope: "repository"
+  # 关键文档作为审查上下文
+  sources:
+    - path: README.md
+      description: 项目概述和架构
+    - path: docs/architecture.md
+      description: 系统架构设计
+
+# 自定义规则：针对 AuditPilot 的特定关注点
+rules:
+  # Python 后端
+  - name: "Python 安全审查"
+    paths:
+      - "backend/app/**/*.py"
+    description: |
+      关注 FastAPI 后端的安全实践：
+      - 文件上传安全（路径遍历、类型校验）
+      - 输入验证
+      - 异常处理
+      - SQL 注入（如使用原始 SQL）
+
+  # TypeScript 前端
+  - name: "前端代码质量"
+    paths:
+      - "frontend/src/**/*.ts"
+      - "frontend/src/**/*.tsx"
+    description: |
+      关注前端代码质量：
+      - 类型安全
+      - 组件设计
+      - 错误边界
+
+  # 测试文件
+  - name: "测试覆盖"
+    paths:
+      - "backend/tests/**/*.py"
+    description: |
+      关注测试质量：
+      - 边界条件是否覆盖
+      - 测试命名是否清晰
+      - 是否测试了真实场景
